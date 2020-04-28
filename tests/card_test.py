@@ -1,11 +1,12 @@
-import pytest
 from src.card import Card
 
 
 class TestCard:
-    def __init__(self):
+    def setup_method(self):
         self.card = Card('regular', 'blue', 0, '#0000ff')
-        pass
+
+    def teardown_method(self):
+        del self.card
 
     def test_card_type(self):
         assert self.card.CardType == 'regular'
