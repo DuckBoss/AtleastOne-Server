@@ -1,0 +1,23 @@
+{
+  "cards": {
+    "regular": {
+      "template_sprite": ""
+    },
+    "skip": {
+      "template_sprite": ""
+    },
+    "reverse": {
+      "template_sprite": ""
+    },
+    "draw2": {
+      "template_sprite": ""
+    },
+    "wild": {
+      "template_sprite": ""
+    },
+    "wild4": {
+      "template_sprite": ""
+    }
+
+  }
+}
