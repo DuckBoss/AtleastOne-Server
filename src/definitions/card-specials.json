@@ -1,22 +1,28 @@
 {
   "cards": {
     "regular": {
-      "template_sprite": ""
+      "template_sprite_front": "",
+      "template_sprite_back": ""
     },
     "skip": {
-      "template_sprite": ""
+      "template_sprite_front": "",
+      "template_sprite_back": ""
     },
     "reverse": {
-      "template_sprite": ""
+      "template_sprite_front": "",
+      "template_sprite_back": ""
     },
     "draw2": {
-      "template_sprite": ""
+      "template_sprite_front": "",
+      "template_sprite_back": ""
     },
     "wild": {
-      "template_sprite": ""
+      "template_sprite_front": "",
+      "template_sprite_back": ""
     },
     "wild4": {
-      "template_sprite": ""
+      "template_sprite_front": "",
+      "template_sprite_back": ""
     }
 
   }
