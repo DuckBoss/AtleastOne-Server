@@ -28,7 +28,7 @@ all_cards['all_cards'] = []
 for x in deck:
     item = x.get_json()
     all_cards['all_cards'].append(item)
-with open('all-cards.json', 'w') as out_file:
+with open('tests/all-cards.json', 'w') as out_file:
     json.dump(all_cards, out_file)
 
 print('\n'.join(x.get_json_dump() for x in deck))
