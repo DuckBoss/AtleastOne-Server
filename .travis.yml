@@ -6,9 +6,10 @@ python:
   - "3.8"
 before_install:
   - sudo apt-get update
+  - pip install -U pytest
 # command to install dependencies
 install:
   - pip install -r requirements.txt
-# command to run tests
+# command to run test_files
 script:
   - pytest
