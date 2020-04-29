@@ -9,3 +9,10 @@ def prepend_msg_length_header(message):
 def prepare_message(message):
     message = prepend_msg_length_header(message)
     return message
+
+
+def send_all_cards():
+    import os
+    with open(os.path.dirname(__file__) + '/../test_files/test-all-cards.json', 'r') as json_file:
+        msg = prepare_message(f"{json_file.read()}")
+        return msg
