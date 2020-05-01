@@ -26,10 +26,11 @@ while True:
         continue
     # Get message length from given header info
     header_len = int(header[1:HEADER_SIZE+1].decode("utf-8"))
-    print(header_len)
     # Get the message based on the number of bytes stated in the header
     full_msg = ssl_socket.recv(header_len)
-    print(full_msg.decode("utf-8"))
-
+    print(f"{header.decode('utf-8')}{full_msg.decode('utf-8')}")
+    if full_msg.decode("utf-8") == "!quit":
+        break
+ssl_socket.close()
 print(f"Client disconnected from server: [{SERVER_IP}:{SERVER_PORT}]")
 
