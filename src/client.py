@@ -1,5 +1,6 @@
 import socket
 import ssl
+import time
 
 SERVER_IP = "127.0.0.1"
 SERVER_PORT = 9999
@@ -14,15 +15,18 @@ ssl_socket.connect((SERVER_IP, SERVER_PORT))
 print(f"Server Certificate:\n{ssl.DER_cert_to_PEM_cert(ssl_socket.getpeercert(True))}")
 print(f"Connnection Established: [{SERVER_IP}:{SERVER_PORT}]")
 
-# Receive welcome message
-msg = ssl_socket.recv(1024)
-if len(msg) > 0:
-    print(msg.decode("utf-8"))
+
 # Loop incoming messages
 while True:
-    # Get header from 10 bytes (2 are formatting)
-    header = ssl_socket.recv(HEADER_SIZE+2)
-    if len(msg) <= 0:
+    header = 0
+    try:
+        # Get header from 10 bytes (2 are formatting)
+        header = ssl_socket.recv(HEADER_SIZE+2)
+    except socket.error:
+        print(socket.error)
+        break
+    if len(header) <= 0:
+        time.sleep(1)
         continue
     # Get message length from given header info
     header_len = int(header[1:HEADER_SIZE+1].decode("utf-8"))
