@@ -3,11 +3,13 @@ import ssl
 import datetime
 import os.path
 import queue
+import select
 from server_cfg import ServerCFGUtility
 from server_strings import *
 from client_thread import ClientThread
 from threading import Thread
 import time
+from server_utilities import prepare_message
 
 
 class Server:
@@ -15,6 +17,9 @@ class Server:
         self.context = None
         self.client_list = None
         self.initialilze_server()
+        self.inputs = []
+        self.outputs = []
+        self.message_queues = {}
 
     def initialilze_server(self):
         print(f"[Server] Initializing Server...")
@@ -34,7 +39,7 @@ class Server:
             print(f"[Server] There was an error binding the socket to {server_ip}:{server_port}")
             return
         # Listen for connections with up to 'X' amount of connections
-        # bind_socket.listen(server_size)
+        bind_socket.listen(server_size)
         # Initialize a client list
         self.client_list = []
         print(f"[Server] Secure Server Online: {server_ip}:{server_port} - {datetime.datetime.now()}")
@@ -53,41 +58,57 @@ class Server:
     def initialize_bind_socket(self, server_ip: str, server_port: int):
         # Create an IPv4 TCP Socket
         bind_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        bind_socket.setblocking(0)
         # Bind socket to IP:Port
         bind_socket.bind((server_ip, server_port))
+        self.inputs = [bind_socket]
+        self.outputs = []
+        self.message_queues = {}
         print(f"[Server] Setting up server on: {server_ip}:{server_port}")
         return bind_socket
 
     def run(self, bind_socket, server_tick_rate: int):
-        while True:
-            bind_socket.listen(5)
+        while self.inputs:
+            readable, writable, exceptional = select.select(self.inputs, self.outputs, self.inputs)
             # Accept an incoming socket connection
-            insecure_socket, client_address = bind_socket.accept()
-            # Wrap the incoming socket into an SSL socket.
-            client_socket = self.context.wrap_socket(insecure_socket, server_side=True)
-
-            print(f"[Server] Client Connected: {client_address[0]}")
-            client_result = queue.Queue()
-            client_thread = ClientThread(client_socket, client_address, server_tick_rate, result=client_result)
-            client_thread.daemon = True
-            client_thread.setName(f"{client_address[0]}:{client_address[1]}")
-            client_thread.start()
-            self.client_list.append(
-                {"thread": client_thread, "socket": client_socket, "address": client_address}
-            )
-
-            print(f"Total Clients:{len(self.client_list)}")
-            client_done = client_result.get()
-            if client_done:
-                for item in self.client_list:
-                    if item["address"][0] == client_address[0] and item["address"][1] == client_address[1]:
-                        client_socket.close()
-                        client_thread.join()
-                        self.client_list.remove(item)
-                        print(f"[Server] Client Disconnected: [{client_address[0]}:{client_address[1]}]")
-                        del client_socket, client_result, client_thread, insecure_socket, client_address
-                        print(f"Total Clients:{len(self.client_list)}")
-                        break
+            for s in readable:
+                if s is bind_socket:
+                    insecure_socket, client_address = bind_socket.accept()
+                    # Wrap the incoming socket into an SSL socket.
+                    client_socket = self.context.wrap_socket(insecure_socket, server_side=True)
+                    client_socket.setblocking(0)
+                    self.inputs.append(client_socket)
+                    self.message_queues[client_socket] = queue.Queue()
+                else:
+                    data = s.recv(1024)
+                    if data:
+                        print(f"Received data: {bytes.decode(data, 'utf-8')} from {s.getpeername()}")
+                        self.message_queues[s].put(bytes.decode(data, 'utf-8'))
+                        if s not in self.outputs:
+                            self.outputs.append(s)
+                    else:
+                        print(f"Closing {client_address} after reading no data.")
+                        if s in self.outputs:
+                            self.outputs.remove(s)
+                        self.inputs.remove(s)
+                        s.close()
+                        del self.message_queues[s]
+            for s in writable:
+                try:
+                    next_msg = self.message_queues[s].get_nowait()
+                except queue.Empty:
+                    print(f"Output queue for {s.getpeername()} is empty")
+                    self.outputs.remove(s)
+                else:
+                    print(f"Sending {next_msg} to {s.getpeername()}")
+                    s.send(bytes(prepare_message(next_msg), 'utf-8'))
+            for s in exceptional:
+                print(f"Handling exceptional condition for {s.getpeername()}")
+                self.inputs.remove(s)
+                if s in self.outputs:
+                    self.outputs.remove(s)
+                s.close()
+                del self.message_queues[s]
 
 
 

@@ -12,9 +12,12 @@ print(f"Connecting to server: [{SERVER_IP}:{SERVER_PORT}]")
 insecure_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 ssl_socket = context.wrap_socket(insecure_socket, server_hostname=SERVER_IP)
 ssl_socket.connect((SERVER_IP, SERVER_PORT))
+
 print(f"Server Certificate:\n{ssl.DER_cert_to_PEM_cert(ssl_socket.getpeercert(True))}")
 print(f"Connnection Established: [{SERVER_IP}:{SERVER_PORT}]")
 
+# Send hello message
+ssl_socket.send(bytes("Hello!", 'utf-8'))
 
 # Loop incoming messages
 while True:
