@@ -1,12 +1,13 @@
 import socket
-import threading
+from threading import Thread
 import time
+import datetime
 from server_utilities import prepare_message
 
 
-class ClientThread(threading.Thread):
+class ClientThread(Thread):
     def __init__(self, client_socket, client_address, server_tick_rate, result=None):
-        threading.Thread.__init__(self)
+        Thread.__init__(self)
         self.client_socket = client_socket
         self.client_address = client_address
         self.server_tick_rate = server_tick_rate
@@ -26,7 +27,7 @@ class ClientThread(threading.Thread):
         # Looped messages to connected clients
         while True:
             time.sleep(self.server_tick_rate)
-            msg = prepare_message("!quit")
+            msg = prepare_message("blah blah")
             try:
                 if msg and len(msg) >= 0:
                     self.client_socket.send(bytes(msg, "utf-8"))
