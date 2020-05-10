@@ -6,9 +6,12 @@ from src.game.card import Card
 
 
 class Deck:
-    def __init__(self, max_deck_size=10, cards: Optional[List[Card]] = None):
+    def __init__(self, max_deck_size=-1, cards: Optional[List[Card]] = None):
         self._cards = deque()
-        self._max_deck_size = max_deck_size
+        if max_deck_size == -1:
+            self._max_deck_size = 99999
+        else:
+            self._max_deck_size = max_deck_size
         if cards:
             for card in cards:
                 self.add_to_top(card)
