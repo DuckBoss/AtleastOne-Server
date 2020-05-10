@@ -1,3 +1,6 @@
+from zlib import adler32
+
+
 class Card:
     def __init__(self, card_color: str, card_category: str, card_number: int = -1, card_hex: str = ''):
         self.number = int(card_number)
@@ -7,7 +10,7 @@ class Card:
         self.generate_id()
 
     def generate_id(self):
-        self.id = f"{self.category[0]}{abs(self.number)}"
+        self.id = adler32(bytes(f"{self.category}{self.color}{abs(self.number)}{self.hex}", 'utf-8'))
 
     def get_json(self):
         return {
