@@ -1,6 +1,6 @@
 import json
 import os
-from src.card import Card
+from src.game.card import Card
 
 
 class TestJSON:
@@ -25,17 +25,17 @@ class TestJSON:
                       f"\n{data['cards']['colors'][card_color]['numbers']}"
                       f"\n{data['cards']['colors'][card_color]['special']}")
                 for card_number in data['cards']['colors'][card_color]['numbers']:
-                    self.deck.append(Card('regular', card_color, card_number=card_number,
+                    self.deck.append(Card(card_category='regular', card_color=card_color, card_number=card_number,
                                      card_hex=data['cards']['colors'][card_color]['hex']))
-                for card_number in data['cards']['colors'][card_color]['special']:
-                    self.deck.append(Card('regular', card_color, card_number=card_number,
+                for card_special in data['cards']['colors'][card_color]['special']:
+                    self.deck.append(Card(card_category=card_special, card_color=card_color, card_number=-1,
                                      card_hex=data['cards']['colors'][card_color]['hex']))
             # Retrieve uncolored cards
             for unique in data['cards']['unique']:
                 for i in range(int(data['cards']['unique'][unique]['amount'])):
                     print(f"{unique} - "
                           f"\n{data['cards']['unique'][unique]}")
-                    self.deck.append(Card(unique, 'none', card_number=-1, card_hex=data['cards']['unique'][unique]['hex']))
+                    self.deck.append(Card(card_category=unique, card_color='none', card_number=-1, card_hex=data['cards']['unique'][unique]['hex']))
 
         self.all_cards['all_cards'] = []
         for x in self.deck:
