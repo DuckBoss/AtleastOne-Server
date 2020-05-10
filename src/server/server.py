@@ -80,7 +80,9 @@ class Server:
         del self.message_queues[sock]
 
     def handle_message_data(self, message, sock):
-        if message == 'Hello!':
+        if message == '!hello':
+            self.message_queues[sock].put(prepare_message(f'[Server] Hello! - {datetime.datetime.now()}'))
+        if message == '!leave':
             self.message_queues[sock].put(prepare_message('!quit'))
 
     def send_message(self, sock, message):
@@ -115,6 +117,7 @@ class Server:
                         continue
                     print(f"[Client:{sock.getpeername()}]: {message}")
                     self.handle_message_data(message, sock)
+                    self.outputs.append(sock)
 
             for sock in writable:
                 try:
@@ -129,7 +132,6 @@ class Server:
             for sock in exceptional:
                 print(f"Handling exceptional condition for {sock.getpeername()}")
                 self.close_socket(sock)
-
 
 
 if __name__ == "__main__":

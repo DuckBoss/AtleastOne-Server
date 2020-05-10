@@ -18,7 +18,7 @@ print(f"Server Certificate:\n{ssl.DER_cert_to_PEM_cert(ssl_socket.getpeercert(Tr
 print(f"Connnection Established: [{SERVER_IP}:{SERVER_PORT}]")
 
 # Send hello message
-ssl_socket.send(bytes(prepare_message("Hello!"), 'utf-8'))
+ssl_socket.send(bytes(prepare_message("!hello"), 'utf-8'))
 
 # Loop incoming messages
 while True:
