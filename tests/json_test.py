@@ -1,6 +1,7 @@
 import json
 import os
 from src.game.card import Card
+from src.game.deck import Deck
 
 
 class TestJSON:
@@ -8,7 +9,7 @@ class TestJSON:
         path_to_current_file = os.path.realpath(__file__)
         current_directory = os.path.split(path_to_current_file)[0]
         self.json_path = os.path.join(current_directory, '../src/test_files/test-default-cards.json')
-        self.deck = []
+        self.deck = Deck(108)
         self.all_cards = {}
 
     def teardown_method(self):
@@ -25,20 +26,20 @@ class TestJSON:
                       f"\n{data['cards']['colors'][card_color]['numbers']}"
                       f"\n{data['cards']['colors'][card_color]['special']}")
                 for card_number in data['cards']['colors'][card_color]['numbers']:
-                    self.deck.append(Card(card_category='regular', card_color=card_color, card_number=card_number,
+                    self.deck.add_to_top(Card(card_category='regular', card_color=card_color, card_number=card_number,
                                      card_hex=data['cards']['colors'][card_color]['hex']))
                 for card_special in data['cards']['colors'][card_color]['special']:
-                    self.deck.append(Card(card_category=card_special, card_color=card_color, card_number=-1,
+                    self.deck.add_to_top(Card(card_category=card_special, card_color=card_color, card_number=-1,
                                      card_hex=data['cards']['colors'][card_color]['hex']))
             # Retrieve uncolored cards
             for unique in data['cards']['unique']:
                 for i in range(int(data['cards']['unique'][unique]['amount'])):
                     print(f"{unique} - "
                           f"\n{data['cards']['unique'][unique]}")
-                    self.deck.append(Card(card_category=unique, card_color='none', card_number=-1, card_hex=data['cards']['unique'][unique]['hex']))
+                    self.deck.add_to_top(Card(card_category=unique, card_color='none', card_number=-1, card_hex=data['cards']['unique'][unique]['hex']))
 
         self.all_cards['all_cards'] = []
-        for x in self.deck:
+        for x in list(self.deck.deck):
             item = x.get_json()
             self.all_cards['all_cards'].append(item)
         assert len(self.all_cards['all_cards']) == 108
