@@ -9,7 +9,7 @@ from server_strings import *
 from client_thread import ClientThread
 from threading import Thread
 import time
-from server_utilities import prepare_message
+from server_utilities import *
 
 
 class Server:
@@ -43,7 +43,7 @@ class Server:
         # Initialize a client list
         self.client_list = []
         print(f"[Server] Secure Server Online: {server_ip}:{server_port} - {datetime.datetime.now()}")
-        self.run(bind_socket, server_tick_rate)
+        self.run(bind_socket)
 
     def initialize_ssl_context(self, server_cert_path: str, server_key_path: str):
         # Setup context for client authentication
@@ -64,51 +64,71 @@ class Server:
         self.inputs = [bind_socket]
         self.outputs = []
         self.message_queues = {}
+        self.header_size = 8
         print(f"[Server] Setting up server on: {server_ip}:{server_port}")
         return bind_socket
 
-    def run(self, bind_socket, server_tick_rate: int):
+    def close_socket(self, sock, sock_err=None):
+        if sock_err:
+            print(f"Client has unexpectedly disconnected: {sock.getpeername()}")
+        else:
+            print(f"Client has disconnected: {sock.getpeername()}")
+        if sock in self.outputs:
+            self.outputs.remove(sock)
+        self.inputs.remove(sock)
+        sock.close()
+        del self.message_queues[sock]
+
+    def handle_message_data(self, message, sock):
+        if message == 'Hello!':
+            self.message_queues[sock].put(prepare_message('!quit'))
+
+    def send_message(self, sock, message):
+        sock.send(bytes(message, 'utf-8'))
+        if sock in self.outputs:
+            self.outputs.remove(sock)
+        self.inputs.remove(sock)
+
+    def run(self, bind_socket):
         while self.inputs:
             readable, writable, exceptional = select.select(self.inputs, self.outputs, self.inputs)
             # Accept an incoming socket connection
-            for s in readable:
-                if s is bind_socket:
+            for sock in readable:
+                # Check if the updated connection is a new socket.
+                if sock is bind_socket:
                     insecure_socket, client_address = bind_socket.accept()
                     # Wrap the incoming socket into an SSL socket.
                     client_socket = self.context.wrap_socket(insecure_socket, server_side=True)
                     client_socket.setblocking(0)
                     self.inputs.append(client_socket)
                     self.message_queues[client_socket] = queue.Queue()
+                # Handle data from clients.
                 else:
-                    data = s.recv(1024)
-                    if data:
-                        print(f"Received data: {bytes.decode(data, 'utf-8')} from {s.getpeername()}")
-                        self.message_queues[s].put(bytes.decode(data, 'utf-8'))
-                        if s not in self.outputs:
-                            self.outputs.append(s)
-                    else:
-                        print(f"Closing {client_address} after reading no data.")
-                        if s in self.outputs:
-                            self.outputs.remove(s)
-                        self.inputs.remove(s)
-                        s.close()
-                        del self.message_queues[s]
-            for s in writable:
+                    try:
+                        # Get header from 10 bytes (2 are formatting)
+                        header = get_msg_header(sock)
+                    except socket.error:
+                        self.close_socket(sock, socket.error)
+                        continue
+                    message = get_message(header, sock)
+                    if not message:
+                        continue
+                    print(f"[Client:{sock.getpeername()}]: {message}")
+                    self.handle_message_data(message, sock)
+
+            for sock in writable:
                 try:
-                    next_msg = self.message_queues[s].get_nowait()
+                    next_msg = self.message_queues[sock].get_nowait()
                 except queue.Empty:
-                    print(f"Output queue for {s.getpeername()} is empty")
-                    self.outputs.remove(s)
+                    print(f"Output queue for {sock.getpeername()} is empty")
+                    self.outputs.remove(sock)
                 else:
-                    print(f"Sending {next_msg} to {s.getpeername()}")
-                    s.send(bytes(prepare_message(next_msg), 'utf-8'))
+                    print(f"Sending {next_msg} to {sock.getpeername()}")
+                    self.send_message(sock, next_msg)
+
             for s in exceptional:
                 print(f"Handling exceptional condition for {s.getpeername()}")
-                self.inputs.remove(s)
-                if s in self.outputs:
-                    self.outputs.remove(s)
-                s.close()
-                del self.message_queues[s]
+                self.close_socket(s)
 
 
 
