@@ -126,9 +126,9 @@ class Server:
                     print(f"Sending {next_msg} to {sock.getpeername()}")
                     self.send_message(sock, next_msg)
 
-            for s in exceptional:
-                print(f"Handling exceptional condition for {s.getpeername()}")
-                self.close_socket(s)
+            for sock in exceptional:
+                print(f"Handling exceptional condition for {sock.getpeername()}")
+                self.close_socket(sock)
 
 
 
