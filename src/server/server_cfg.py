@@ -13,4 +13,3 @@ class ServerCFGUtility:
 
     def get_full_config(self):
         return self.config
-

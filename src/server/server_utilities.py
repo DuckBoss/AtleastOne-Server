@@ -24,4 +24,3 @@ def get_message(header_msg, socket):
     raw_data = socket.recv(header_len)
     msg_data = bytes.decode(raw_data, 'utf-8')
     return msg_data
-

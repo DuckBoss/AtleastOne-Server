@@ -9,7 +9,7 @@ from server_strings import *
 from client_thread import ClientThread
 from threading import Thread
 import time
-from server_utilities import *
+from server_utilities import prepare_message, get_message, get_msg_header
 
 
 class Server:
@@ -84,12 +84,19 @@ class Server:
             self.message_queues[sock].put(prepare_message(f'[Server] Hello! - {datetime.datetime.now()}'))
         if message == '!leave':
             self.message_queues[sock].put(prepare_message('!quit'))
+        if message == '!draw_card':
+            # test code
+            from src.game.deck import Deck
+            deck = Deck(infinite_deck=True)
+            card = deck.draw()
+            self.message_queues[sock].put(prepare_message(f'[Server] {str(card)}'))
 
     def send_message(self, sock, message):
         sock.send(bytes(message, 'utf-8'))
         if sock in self.outputs:
             self.outputs.remove(sock)
-        self.inputs.remove(sock)
+        if sock not in self.inputs:
+            self.inputs.append(sock)
 
     def run(self, bind_socket):
         while self.inputs:

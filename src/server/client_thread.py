@@ -15,7 +15,6 @@ class ClientThread(Thread):
         if result:
             self.result = result
         print(f"[Server - ClientThread] New connection added: {client_address}")
-        return
 
     def run(self):
         print(f"[Server - ClientThread] Connection established from: {self.client_address[0]}:{self.client_address[1]}")
@@ -36,4 +35,3 @@ class ClientThread(Thread):
                     self.result.put(f"{self.client_address[0]}:{self.client_address[1]}")
                     print(f"[Server - ClientThread] Connection closing: {self.client_address[0]}:{self.client_address[1]}")
                 break
-

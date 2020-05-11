@@ -19,7 +19,6 @@ print(f"Connnection Established: [{SERVER_IP}:{SERVER_PORT}]")
 
 # Send hello message
 ssl_socket.send(bytes(prepare_message("!hello"), 'utf-8'))
-
 # Loop incoming messages
 while True:
     header = 0
@@ -38,6 +37,8 @@ while True:
     print(f"{header.decode('utf-8')}{full_msg.decode('utf-8')}")
     if full_msg.decode("utf-8") == "!quit":
         break
+    ssl_socket.send(bytes(prepare_message("!draw_card"), 'utf-8'))
+    time.sleep(1)
 ssl_socket.close()
 print(f"Client disconnected from server: [{SERVER_IP}:{SERVER_PORT}]")
 
