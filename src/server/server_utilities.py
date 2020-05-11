@@ -11,8 +11,16 @@ def prepare_message(message):
     return message
 
 
-def send_all_cards():
-    import os
-    with open(os.path.dirname(__file__) + '/../test_files/test-all-cards.json', 'r') as json_file:
-        msg = prepare_message(f"{json_file.read()}")
-        return msg
+def get_msg_header(socket):
+    return socket.recv(HEADER_SIZE+2)
+
+
+def get_message(header_msg, socket):
+    if len(header_msg) <= 0:
+        return None
+    # Get message length from given header info
+    header_len = int(header_msg[1:HEADER_SIZE + 1].decode("utf-8"))
+    # Get the message based on the number of bytes stated in the header
+    raw_data = socket.recv(header_len)
+    msg_data = bytes.decode(raw_data, 'utf-8')
+    return msg_data

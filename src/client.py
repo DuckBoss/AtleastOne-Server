@@ -1,5 +1,7 @@
 import socket
 import ssl
+import time
+from server.server_utilities import prepare_message
 
 SERVER_IP = "127.0.0.1"
 SERVER_PORT = 9999
@@ -11,25 +13,32 @@ print(f"Connecting to server: [{SERVER_IP}:{SERVER_PORT}]")
 insecure_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 ssl_socket = context.wrap_socket(insecure_socket, server_hostname=SERVER_IP)
 ssl_socket.connect((SERVER_IP, SERVER_PORT))
+
 print(f"Server Certificate:\n{ssl.DER_cert_to_PEM_cert(ssl_socket.getpeercert(True))}")
 print(f"Connnection Established: [{SERVER_IP}:{SERVER_PORT}]")
 
-# Receive welcome message
-msg = ssl_socket.recv(1024)
-if len(msg) > 0:
-    print(msg.decode("utf-8"))
+# Send hello message
+ssl_socket.send(bytes(prepare_message("!hello"), 'utf-8'))
 # Loop incoming messages
 while True:
-    # Get header from 10 bytes (2 are formatting)
-    header = ssl_socket.recv(HEADER_SIZE+2)
-    if len(msg) <= 0:
+    header = 0
+    try:
+        # Get header from 10 bytes (2 are formatting)
+        header = ssl_socket.recv(HEADER_SIZE+2)
+    except socket.error:
+        print(socket.error)
+        break
+    if len(header) <= 0:
         continue
     # Get message length from given header info
     header_len = int(header[1:HEADER_SIZE+1].decode("utf-8"))
-    print(header_len)
     # Get the message based on the number of bytes stated in the header
     full_msg = ssl_socket.recv(header_len)
-    print(full_msg.decode("utf-8"))
-
+    print(f"{header.decode('utf-8')}{full_msg.decode('utf-8')}")
+    if full_msg.decode("utf-8") == "!quit":
+        break
+    ssl_socket.send(bytes(prepare_message("!draw_card"), 'utf-8'))
+    time.sleep(1)
+ssl_socket.close()
 print(f"Client disconnected from server: [{SERVER_IP}:{SERVER_PORT}]")
 
