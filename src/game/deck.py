@@ -1,9 +1,8 @@
 from collections import deque
 from typing import Deque, List, Optional
-from random import seed, shuffle, randint
+from random import seed, shuffle, randint, random
 from time import time
 from src.game.card import Card
-from random import seed, random, randint
 from copy import deepcopy
 
 
