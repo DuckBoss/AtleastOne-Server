@@ -15,9 +15,6 @@ def generate_card_dictionary():
         data = json.load(card_defs)
         # Retrieve colored cards
         for card_color in data['cards']['colors']:
-            print(f"{card_color} - "
-                  f"\n{data['cards']['colors'][card_color]['numbers']}"
-                  f"\n{data['cards']['colors'][card_color]['special']}")
             for card_number in data['cards']['colors'][card_color]['numbers']:
                 deck.append(Card(card_category='regular', card_color=card_color, card_number=card_number, card_hex=data['cards']['colors'][card_color]['hex']))
             for card_type in data['cards']['colors'][card_color]['special']:
@@ -25,8 +22,6 @@ def generate_card_dictionary():
         # Retrieve uncolored cards
         for unique in data['cards']['unique']:
             for i in range(int(data['cards']['unique'][unique]['amount'])):
-                print(f"{unique} - "
-                      f"\n{data['cards']['unique'][unique]}")
                 deck.append(Card(unique, 'none', card_number=-1, card_hex=data['cards']['unique'][unique]['hex']))
 
     all_cards['all_cards'] = []
