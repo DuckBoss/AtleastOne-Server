@@ -3,11 +3,19 @@ from typing import Deque, List, Optional
 from random import seed, shuffle, randint
 from time import time
 from src.game.card import Card
+from random import seed, random, randint
+from copy import deepcopy
 
 
 class Deck:
-    def __init__(self, max_deck_size=-1, cards: Optional[List[Card]] = None):
+    def __init__(self, infinite_deck: bool = False, max_deck_size=-1, cards: Optional[List[Card]] = None):
         self._cards = deque()
+        self.infinite_deck = infinite_deck
+        if infinite_deck:
+            from src.game.utils.deck_utils import generate_card_dictionary
+            self.card_dictionary = generate_card_dictionary()
+            self._max_deck_size = 99999
+            return
         if max_deck_size == -1:
             self._max_deck_size = 99999
         else:
@@ -43,12 +51,21 @@ class Deck:
         return card
 
     def draw(self) -> Card:
+        if self.infinite_deck:
+            seed(random())
+            picked_card_index = randint(0, len(self.card_dictionary)-1)
+            picked_card = deepcopy(self.card_dictionary[picked_card_index])
+            return picked_card
         return self.deck.pop()
 
     def draw_bottom(self) -> Card:
+        if self.infinite_deck:
+            return self.draw()
         return self.deck.popleft()
 
     def shuffle_deck(self):
+        if self.infinite_deck:
+            return
         seed(time())
         shuffle(self._cards)
 
@@ -69,4 +86,6 @@ class Deck:
         return self._max_deck_size
 
     def __str__(self):
+        if self.infinite_deck:
+            return f"Deck (Infinite Size)"
         return f"Deck ({','.join(self.deck)}"
