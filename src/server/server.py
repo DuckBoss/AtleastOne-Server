@@ -5,7 +5,7 @@ import os.path
 import queue
 import select
 from server_cfg import ServerCFGUtility
-from server_strings import *
+from server_strings import SERVER_SETTINGS, SERVER_IP, SERVER_PORT, SERVER_TICK_RATE, SERVER_SIZE, SERVER_FILES, SERVER_CERT_PATH, SERVER_PKEY_PATH
 from client_thread import ClientThread
 from threading import Thread
 import time
