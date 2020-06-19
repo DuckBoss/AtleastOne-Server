@@ -14,6 +14,7 @@ from server_utilities import prepare_message, get_message, get_msg_header
 
 class Server:
     def __init__(self):
+        self.header_size = 8
         self.context = None
         self.client_list = None
         self.initialilze_server()
@@ -33,7 +34,7 @@ class Server:
         server_ip = str(cfg_utility.get_value(key=SERVER_IP, section=SERVER_SETTINGS))
         server_port = int(cfg_utility.get_value(key=SERVER_PORT, section=SERVER_SETTINGS))
         server_size = int(cfg_utility.get_value(key=SERVER_SIZE, section=SERVER_SETTINGS))
-        server_tick_rate = float(cfg_utility.get_value(key=SERVER_TICK_RATE, section=SERVER_SETTINGS))
+        self.server_tick_rate = float(cfg_utility.get_value(key=SERVER_TICK_RATE, section=SERVER_SETTINGS))
         bind_socket = self.initialize_bind_socket(server_ip, server_port)
         if not bind_socket:
             print(f"[Server] There was an error binding the socket to {server_ip}:{server_port}")
@@ -64,7 +65,6 @@ class Server:
         self.inputs = [bind_socket]
         self.outputs = []
         self.message_queues = {}
-        self.header_size = 8
         print(f"[Server] Setting up server on: {server_ip}:{server_port}")
         return bind_socket
 
@@ -80,16 +80,18 @@ class Server:
         del self.message_queues[sock]
 
     def handle_message_data(self, message, sock):
-        if message == '!hello':
+        if message == '!ping':
             self.message_queues[sock].put(prepare_message(f'[Server] Hello! - {datetime.datetime.now()}'))
-        if message == '!leave':
+        elif message == '!leave':
             self.message_queues[sock].put(prepare_message('!quit'))
-        if message == '!draw_card':
+        elif message == '!draw_card':
             # test code
             from src.game.deck import Deck
             deck = Deck(infinite_deck=True)
             card = deck.draw()
             self.message_queues[sock].put(prepare_message(f'[Server] {str(card)}'))
+        else:
+            self.message_queues[sock].put(prepare_message(f'[Server] Client said - {message}'))
 
     def send_message(self, sock, message):
         sock.send(bytes(message, 'utf-8'))
@@ -127,18 +129,21 @@ class Server:
                     self.outputs.append(sock)
 
             for sock in writable:
-                try:
-                    next_msg = self.message_queues[sock].get_nowait()
-                except queue.Empty:
-                    print(f"Output queue for {sock.getpeername()} is empty")
-                    self.outputs.remove(sock)
-                else:
-                    print(f"Sending {next_msg} to {sock.getpeername()}")
-                    self.send_message(sock, next_msg)
+                for i in range(self.message_queues[sock].qsize()):
+                    try:
+                        next_msg = self.message_queues[sock].get_nowait()
+                    except queue.Empty:
+                        print(f"Output queue for {sock.getpeername()} is empty")
+                        self.outputs.remove(sock)
+                    else:
+                        print(f"Sending {next_msg} to {sock.getpeername()}")
+                        self.send_message(sock, next_msg)
 
             for sock in exceptional:
                 print(f"Handling exceptional condition for {sock.getpeername()}")
                 self.close_socket(sock)
+
+            time.sleep(self.server_tick_rate)
 
 
 if __name__ == "__main__":
