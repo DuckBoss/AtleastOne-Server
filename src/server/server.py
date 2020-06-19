@@ -118,6 +118,7 @@ class Server:
         for com in self.commands:
             if command == com:
                 return self.callbacks.callback(self.commands[command], *params)
+        return False
 
     def broadcast_message(self, origin_sock, message):
         for sock in self.message_queues:
