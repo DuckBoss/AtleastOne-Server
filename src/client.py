@@ -6,6 +6,7 @@ from server.server_utilities import prepare_message
 
 SERVER_IP = "127.0.0.1"
 SERVER_PORT = 9999
+PLAYER_NAME = input("Enter a display name: ")
 HEADER_SIZE = 8
 CLIENT_TICK_RATE = 0.1
 
@@ -23,7 +24,8 @@ print(f"Connnection Established: [{SERVER_IP}:{SERVER_PORT}]")
 def disconnect_from_server():
     global kill_threads
     kill_threads = True
-    ssl_socket.close()
+    if ssl_socket:
+        ssl_socket.close()
     print(f"Client disconnected from server: [{SERVER_IP}:{SERVER_PORT}]")
 
 
@@ -35,6 +37,7 @@ def inbound_server_data():
             header = ssl_socket.recv(HEADER_SIZE + 2)
         except socket.error as e:
             print(e)
+            disconnect_from_server()
             continue
         if len(header) <= 0:
             continue
@@ -49,15 +52,16 @@ def inbound_server_data():
 
 def outbound_data_to_server():
     # Send hello message
-    ssl_socket.send(bytes(prepare_message("!ping"), 'utf-8'))
+    ssl_socket.send(bytes(prepare_message(f"!connect {PLAYER_NAME}"), 'utf-8'))
     while not kill_threads:
         try:
             # ssl_socket.send(bytes(prepare_message("!draw_card"), 'utf-8'))
-            ssl_socket.send(bytes(prepare_message(input()), 'utf-8'))
+            to_send = input()
+            ssl_socket.send(bytes(prepare_message(to_send), 'utf-8'))
         except socket.error as e:
-            print(e)
+            # print(e)
             disconnect_from_server()
-            break
+            return
         time.sleep(CLIENT_TICK_RATE)
 
 
