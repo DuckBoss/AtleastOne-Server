@@ -4,6 +4,10 @@ import datetime
 import os.path
 import queue
 import select
+from base64 import b64encode
+from os import urandom
+import random
+
 from server_cfg import ServerCFGUtility
 from server_strings import SERVER_SETTINGS, SERVER_IP, SERVER_PORT, SERVER_TICK_RATE, SERVER_SIZE, SERVER_FILES, SERVER_CERT_PATH, SERVER_PKEY_PATH
 from client_thread import ClientThread
@@ -11,16 +15,22 @@ from threading import Thread
 import time
 from server_utilities import prepare_message, get_message, get_msg_header
 
+from src.game.player import Player
+
 
 class Server:
     def __init__(self):
         self.header_size = 8
         self.context = None
         self.client_list = None
-        self.initialilze_server()
+
         self.inputs = []
         self.outputs = []
+        self.players = []
         self.message_queues = {}
+
+        self.initialilze_server()
+
 
     def initialilze_server(self):
         print(f"[Server] Initializing Server...")
@@ -69,29 +79,62 @@ class Server:
         return bind_socket
 
     def close_socket(self, sock, sock_err=None):
+        player = self.find_player_by_socket(sock)
         if sock_err:
-            print(f"Client has unexpectedly disconnected: {sock.getpeername()}")
+            print(f"Client has unexpectedly disconnected: {player.name}({sock.getpeername()})")
         else:
-            print(f"Client has disconnected: {sock.getpeername()}")
+            print(f"Client has disconnected: {player.name}({sock.getpeername()})")
+
         if sock in self.outputs:
             self.outputs.remove(sock)
-        self.inputs.remove(sock)
-        sock.close()
+        if sock in self.inputs:
+            self.inputs.remove(sock)
+        if player in self.players:
+            self.players.remove(player)
         del self.message_queues[sock]
+        sock.close()
+
+    def find_player_by_socket(self, sock):
+        for player in self.players:
+            if player.socket == sock:
+                return player
+        return None
 
     def handle_message_data(self, message, sock):
-        if message == '!ping':
-            self.message_queues[sock].put(prepare_message(f'[Server] Hello! - {datetime.datetime.now()}'))
+        message_split = message.split(' ', 1)
+        if message_split[0] == '!connect':
+            if len(message_split) != 2:
+                return
+            new_player = self.find_player_by_socket(sock)
+            new_name = message_split[1].strip()
+            if message_split[1].strip().lower() in [player.name.lower() for player in self.players]:
+                print("A client tried to join with the same name as an existing client. "
+                      "A randomly generated name has been given instead.")
+                new_name = f'#{random.SystemRandom().getrandbits(16)}'
+            new_player.name = new_name
+            self.message_queues[sock].put(prepare_message(f'[Server] Hello {new_player.name}! - {datetime.datetime.now()}'))
+            return True
         elif message == '!leave':
-            self.message_queues[sock].put(prepare_message('!quit'))
+            # self.message_queues[sock].put(prepare_message(f'!quit'))
+            self.broadcast_message(sock, f"Client has disconnected: {self.find_player_by_socket(sock).name}({sock.getpeername()})")
+            self.close_socket(sock)
+            return False
         elif message == '!draw_card':
             # test code
             from src.game.deck import Deck
             deck = Deck(infinite_deck=True)
             card = deck.draw()
             self.message_queues[sock].put(prepare_message(f'[Server] {str(card)}'))
+            return True
         else:
-            self.message_queues[sock].put(prepare_message(f'[Server] Client said - {message}'))
+            self.broadcast_message(sock, f'{self.find_player_by_socket(sock).name} said - {message}')
+            return True
+
+    def broadcast_message(self, origin_sock, message):
+        for sock in self.message_queues:
+            self.message_queues[sock].put(prepare_message(f'[Server] {message}'))
+            if self.message_queues[sock] != origin_sock:
+                self.outputs.append(sock)
 
     def send_message(self, sock, message):
         sock.send(bytes(message, 'utf-8'))
@@ -111,6 +154,12 @@ class Server:
                     # Wrap the incoming socket into an SSL socket.
                     client_socket = self.context.wrap_socket(insecure_socket, server_side=True)
                     client_socket.setblocking(0)
+
+                    new_player_id = random.SystemRandom().getrandbits(16)
+                    new_player = Player(socket=client_socket, name=f"#{new_player_id}")
+                    print(f"New client connected, generated player {new_player.name}")
+                    self.players.append(new_player)
+
                     self.inputs.append(client_socket)
                     self.message_queues[client_socket] = queue.Queue()
                 # Handle data from clients.
@@ -124,23 +173,31 @@ class Server:
                     message = get_message(header, sock)
                     if not message:
                         continue
-                    print(f"[Client:{sock.getpeername()}]: {message}")
-                    self.handle_message_data(message, sock)
+                    print(f"[Client:{self.find_player_by_socket(sock).name}({sock.getpeername()})]: {message}")
+                    if not self.handle_message_data(message, sock):
+                        continue
                     self.outputs.append(sock)
 
             for sock in writable:
-                for i in range(self.message_queues[sock].qsize()):
-                    try:
-                        next_msg = self.message_queues[sock].get_nowait()
-                    except queue.Empty:
-                        print(f"Output queue for {sock.getpeername()} is empty")
+                try:
+                    for i in range(self.message_queues[sock].qsize()):
+                        try:
+                            next_msg = self.message_queues[sock].get_nowait()
+                        except queue.Empty:
+                            print(f"Output queue for {self.find_player_by_socket(sock).name}({sock.getpeername()}) is empty")
+                            self.outputs.remove(sock)
+                        else:
+                            print(f"Sending {next_msg} to {self.find_player_by_socket(sock).name}({sock.getpeername()})")
+                            self.send_message(sock, next_msg)
+                except KeyError:
+                    if sock in self.inputs:
+                        self.inputs.remove(sock)
+                    if sock in self.outputs:
                         self.outputs.remove(sock)
-                    else:
-                        print(f"Sending {next_msg} to {sock.getpeername()}")
-                        self.send_message(sock, next_msg)
+                    continue
 
             for sock in exceptional:
-                print(f"Handling exceptional condition for {sock.getpeername()}")
+                print(f"Handling exceptional condition for {self.find_player_by_socket(sock).name}({sock.getpeername()})")
                 self.close_socket(sock)
 
             time.sleep(self.server_tick_rate)
