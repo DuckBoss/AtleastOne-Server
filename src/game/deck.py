@@ -20,8 +20,9 @@ class Deck:
         else:
             self._max_deck_size = max_deck_size
         if cards:
-            for card in cards:
-                self.add_to_top(card)
+            self._max_deck_size = len(cards)
+            self.add_cards(cards)
+            self.shuffle_deck()
 
     def add_cards(self, cards: [List[Card]]) -> bool:
         if len(cards) > self.size:
