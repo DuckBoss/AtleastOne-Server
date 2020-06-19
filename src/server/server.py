@@ -4,13 +4,12 @@ import datetime
 import os.path
 import queue
 import select
-from base64 import b64encode
-from os import urandom
 import random
 
 from server_cfg import ServerCFGUtility
+import server_callbacks
+import server_commands
 from server_strings import SERVER_SETTINGS, SERVER_IP, SERVER_PORT, SERVER_TICK_RATE, SERVER_SIZE, SERVER_FILES, SERVER_CERT_PATH, SERVER_PKEY_PATH
-from client_thread import ClientThread
 from threading import Thread
 import time
 from server_utilities import prepare_message, get_message, get_msg_header
@@ -29,18 +28,32 @@ class Server:
         self.players = []
         self.message_queues = {}
 
-        self.initialilze_server()
+        self.commands = server_commands.ServerCommands()
+        self.callbacks = server_callbacks.ServerCallbacks()
+        self.serv_thread = None
+        self.exit_flag = False
+        self.bind_socket = self.setup_server()
 
+    def start_server(self):
+        if self.bind_socket:
+            self.serv_thread = Thread(target=self.run, args=(self.bind_socket,))
+            self.serv_thread.start()
+            self.callbacks.callback('on_server_start')
+            #self.run(self.bind_socket)
 
-    def initialilze_server(self):
-        print(f"[Server] Initializing Server...")
+    def shutdown_server(self):
+        self.exit_flag = True
+        self.serv_thread.join()
+
+    def setup_server(self):
+        print(f"[Server] Setting Up Server...")
         cfg_utility = ServerCFGUtility(os.path.dirname(os.path.abspath(__file__))+"/../configs/server_config.ini")
         server_cert = str(cfg_utility.get_value(key=SERVER_CERT_PATH, section=SERVER_FILES))
         server_pkey = str(cfg_utility.get_value(key=SERVER_PKEY_PATH, section=SERVER_FILES))
         ssl_ready = self.initialize_ssl_context(server_cert_path=server_cert, server_key_path=server_pkey)
         if not ssl_ready:
             print("[Server] There was an error establishing the SSL certification/key")
-            return
+            return None
         server_ip = str(cfg_utility.get_value(key=SERVER_IP, section=SERVER_SETTINGS))
         server_port = int(cfg_utility.get_value(key=SERVER_PORT, section=SERVER_SETTINGS))
         server_size = int(cfg_utility.get_value(key=SERVER_SIZE, section=SERVER_SETTINGS))
@@ -48,13 +61,14 @@ class Server:
         bind_socket = self.initialize_bind_socket(server_ip, server_port)
         if not bind_socket:
             print(f"[Server] There was an error binding the socket to {server_ip}:{server_port}")
-            return
+            return None
         # Listen for connections with up to 'X' amount of connections
         bind_socket.listen(server_size)
         # Initialize a client list
         self.client_list = []
-        print(f"[Server] Secure Server Online: {server_ip}:{server_port} - {datetime.datetime.now()}")
-        self.run(bind_socket)
+        print(f"[Server] Secure Server Established: {server_ip}:{server_port}")
+        self.callbacks.callback('on_server_start')
+        return bind_socket
 
     def initialize_ssl_context(self, server_cert_path: str, server_key_path: str):
         # Setup context for client authentication
@@ -100,43 +114,23 @@ class Server:
                 return player
         return None
 
-    def handle_message_data(self, message, sock):
-        message_split = message.split(' ', 1)
-        if message_split[0] == '!connect':
-            if len(message_split) != 2:
-                return
-            new_player = self.find_player_by_socket(sock)
-            new_name = message_split[1].strip()
-            if message_split[1].strip().lower() in [player.name.lower() for player in self.players]:
-                print("A client tried to join with the same name as an existing client. "
-                      "A randomly generated name has been given instead.")
-                new_name = f'#{random.SystemRandom().getrandbits(16)}'
-            new_player.name = new_name
-            self.message_queues[sock].put(prepare_message(f'[Server] Hello {new_player.name}! - {datetime.datetime.now()}'))
-            return True
-        elif message == '!leave':
-            # self.message_queues[sock].put(prepare_message(f'!quit'))
-            self.broadcast_message(sock, f"Client has disconnected: {self.find_player_by_socket(sock).name}({sock.getpeername()})")
-            self.close_socket(sock)
-            return False
-        elif message == '!draw_card':
-            # test code
-            from src.game.deck import Deck
-            deck = Deck(infinite_deck=True)
-            card = deck.draw()
-            self.message_queues[sock].put(prepare_message(f'[Server] {str(card)}'))
-            return True
-        else:
-            self.broadcast_message(sock, f'{self.find_player_by_socket(sock).name} said - {message}')
-            return True
+    def handle_message_data(self, command, *params):
+        for com in self.commands:
+            if command == com:
+                return self.callbacks.callback(self.commands[command], *params)
 
     def broadcast_message(self, origin_sock, message):
         for sock in self.message_queues:
-            self.message_queues[sock].put(prepare_message(f'[Server] {message}'))
+            self.message_queues[sock].put(prepare_message(f'{message}'))
             if self.message_queues[sock] != origin_sock:
                 self.outputs.append(sock)
 
     def send_message(self, sock, message):
+        self.message_queues[sock].put(prepare_message(f'{message}'))
+        if sock not in self.outputs:
+            self.outputs.append(sock)
+
+    def send_data(self, sock, message):
         sock.send(bytes(message, 'utf-8'))
         if sock in self.outputs:
             self.outputs.remove(sock)
@@ -144,7 +138,7 @@ class Server:
             self.inputs.append(sock)
 
     def run(self, bind_socket):
-        while self.inputs:
+        while self.inputs and self.exit_flag is False:
             readable, writable, exceptional = select.select(self.inputs, self.outputs, self.inputs)
             # Accept an incoming socket connection
             for sock in readable:
@@ -157,7 +151,7 @@ class Server:
 
                     new_player_id = random.SystemRandom().getrandbits(16)
                     new_player = Player(socket=client_socket, name=f"#{new_player_id}")
-                    print(f"New client connected, generated player {new_player.name}")
+                    print(f"[Server] New client connected, generated player {new_player.name}")
                     self.players.append(new_player)
 
                     self.inputs.append(client_socket)
@@ -174,7 +168,10 @@ class Server:
                     if not message:
                         continue
                     print(f"[Client:{self.find_player_by_socket(sock).name}({sock.getpeername()})]: {message}")
-                    if not self.handle_message_data(message, sock):
+                    message_split = message.split(' ', 1)
+                    if len(message_split) != 2:
+                        message_split.append(None)
+                    if not self.handle_message_data(message_split[0], sock, message_split[1]):
                         continue
                     self.outputs.append(sock)
 
@@ -188,7 +185,7 @@ class Server:
                             self.outputs.remove(sock)
                         else:
                             print(f"Sending {next_msg} to {self.find_player_by_socket(sock).name}({sock.getpeername()})")
-                            self.send_message(sock, next_msg)
+                            self.send_data(sock, next_msg)
                 except KeyError:
                     if sock in self.inputs:
                         self.inputs.remove(sock)
@@ -201,7 +198,3 @@ class Server:
                 self.close_socket(sock)
 
             time.sleep(self.server_tick_rate)
-
-
-if __name__ == "__main__":
-    server = Server()

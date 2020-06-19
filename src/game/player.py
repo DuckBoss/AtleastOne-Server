@@ -7,6 +7,7 @@ class Player:
         self._socket = socket
         self._name = name
         self._hand = hand
+        self.name_set_flag = False
 
     @property
     def hand(self):
