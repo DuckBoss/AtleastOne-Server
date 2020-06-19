@@ -36,7 +36,7 @@ def inbound_server_data():
             # Get header from 10 bytes (2 are formatting)
             header = ssl_socket.recv(HEADER_SIZE + 2)
         except socket.error as e:
-            print(e)
+            # print(e)
             disconnect_from_server()
             continue
         if len(header) <= 0:
@@ -55,7 +55,6 @@ def outbound_data_to_server():
     ssl_socket.send(bytes(prepare_message(f"!connect {PLAYER_NAME}"), 'utf-8'))
     while not kill_threads:
         try:
-            # ssl_socket.send(bytes(prepare_message("!draw_card"), 'utf-8'))
             to_send = input()
             ssl_socket.send(bytes(prepare_message(to_send), 'utf-8'))
         except socket.error as e:
