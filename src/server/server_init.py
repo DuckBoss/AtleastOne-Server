@@ -8,14 +8,16 @@ def on_start():
     print("[Server] The server has started.")
 
 
-def on_connect(socket, message):
+def on_connect(*params):
+    socket = params[0]
+    message = params[1]
     if message is None:
         return False
-    new_player = server.find_player_by_socket(socket)
+    new_player = server.find_client_by_socket(socket)
     if new_player.name_set_flag:
         return False
     new_name = message
-    if message.lower() in [player.name.lower() for player in server.players]:
+    if message.lower() in [player.name.lower() for player in server.clients]:
         print("[Server] A client tried to join with the same name as an existing client. "
               "A randomly generated name has been given instead.")
         new_name = f'User#{random.SystemRandom().getrandbits(16)}'
@@ -28,16 +30,23 @@ def on_connect(socket, message):
 def on_message(*params):
     socket = params[0]
     message = params[1]
-    server.broadcast_message(socket, f'[{server.find_player_by_socket(socket).name}]: {message}')
-    print(f'[{server.find_player_by_socket(socket).name}]: {message}')
+    server.broadcast_message(socket, f'[{server.find_client_by_socket(socket).name}]: {message}')
+    print(f'[{server.find_client_by_socket(socket).name}]: {message}')
     return True
 
 
 def on_disconnect(*params):
     socket = params[0]
-    server.broadcast_message(socket, f"[Server] Client has disconnected: {server.find_player_by_socket(socket).name}({socket.getpeername()})")
+    server.broadcast_message(socket, f"[Server] Client has disconnected: {server.find_client_by_socket(socket).name}({socket.getpeername()})")
     server.close_socket(socket)
     return False
+
+
+def on_get_clients(*params):
+    socket = params[0]
+    all_clients = [client.name for client in server.clients]
+    server.send_message(socket, f"[Server] All Clients: {', '.join(all_clients)}")
+    return True
 
 
 def on_draw_card(*params):
@@ -54,6 +63,8 @@ server.callbacks.register_callback('on_client_disconnect', on_disconnect)
 server.callbacks.register_callback('on_server_start', on_start)
 server.callbacks.register_callback('on_client_message', on_message)
 server.callbacks.register_callback('on_draw_card', on_draw_card)
+server.callbacks.register_callback('on_get_clients', on_get_clients)
 server.commands.register_command('!say', 'on_client_message')
 server.commands.register_command('!draw', 'on_draw_card')
+server.commands.register_command('!clients', 'on_get_clients')
 server.start_server()
