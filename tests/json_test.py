@@ -20,24 +20,14 @@ class TestJSON:
     def test_json(self):
         with open(self.json_path, 'r') as card_defs:
             data = json.load(card_defs)
-            # Retrieve colored cards
+            # Retrieve all cards
             for card_color in data['cards']['colors']:
                 print(f"{card_color} - "
                       f"\n{data['cards']['colors'][card_color]['numbers']}"
                       f"\n{data['cards']['colors'][card_color]['special']}")
-                for card_number in data['cards']['colors'][card_color]['numbers']:
-                    self.deck.add_to_top(Card(card_category='regular', card_color=card_color, card_number=card_number,
+                for card_value in data['cards']['colors'][card_color]['numbers']:
+                    self.deck.add_to_top(Card(card_color=card_color, card_value=card_value,
                                      card_hex=data['cards']['colors'][card_color]['hex']))
-                for card_special in data['cards']['colors'][card_color]['special']:
-                    self.deck.add_to_top(Card(card_category=card_special, card_color=card_color, card_number=-1,
-                                     card_hex=data['cards']['colors'][card_color]['hex']))
-            # Retrieve uncolored cards
-            for unique in data['cards']['unique']:
-                for i in range(int(data['cards']['unique'][unique]['amount'])):
-                    print(f"{unique} - "
-                          f"\n{data['cards']['unique'][unique]}")
-                    self.deck.add_to_top(Card(card_category=unique, card_color='none', card_number=-1, card_hex=data['cards']['unique'][unique]['hex']))
-
         self.all_cards['all_cards'] = []
         for x in list(self.deck.deck):
             item = x.get_json()
