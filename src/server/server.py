@@ -25,7 +25,7 @@ class Server:
 
         self.inputs = []
         self.outputs = []
-        self.players = []
+        self.clients = []
         self.message_queues = {}
 
         self.commands = server_commands.ServerCommands()
@@ -39,7 +39,6 @@ class Server:
             self.serv_thread = Thread(target=self.run, args=(self.bind_socket,))
             self.serv_thread.start()
             self.callbacks.callback('on_server_start')
-            #self.run(self.bind_socket)
 
     def shutdown_server(self):
         self.exit_flag = True
@@ -93,7 +92,7 @@ class Server:
         return bind_socket
 
     def close_socket(self, sock, sock_err=None):
-        player = self.find_player_by_socket(sock)
+        player = self.find_client_by_socket(sock)
         if sock_err:
             print(f"Client has unexpectedly disconnected: {player.name}({sock.getpeername()})")
         else:
@@ -103,13 +102,13 @@ class Server:
             self.outputs.remove(sock)
         if sock in self.inputs:
             self.inputs.remove(sock)
-        if player in self.players:
-            self.players.remove(player)
+        if player in self.clients:
+            self.clients.remove(player)
         del self.message_queues[sock]
         sock.close()
 
-    def find_player_by_socket(self, sock):
-        for player in self.players:
+    def find_client_by_socket(self, sock):
+        for player in self.clients:
             if player.socket == sock:
                 return player
         return None
@@ -150,10 +149,10 @@ class Server:
                     client_socket = self.context.wrap_socket(insecure_socket, server_side=True)
                     client_socket.setblocking(0)
 
-                    new_player_id = random.SystemRandom().getrandbits(16)
-                    new_player = Player(socket=client_socket, name=f"#{new_player_id}")
-                    print(f"[Server] New client connected, generated player {new_player.name}")
-                    self.players.append(new_player)
+                    new_client_id = random.SystemRandom().getrandbits(16)
+                    new_client = Player(socket=client_socket, name=f"#{new_client_id}")
+                    print(f"[Server] New client connected, generated player {new_client.name}")
+                    self.clients.append(new_client)
 
                     self.inputs.append(client_socket)
                     self.message_queues[client_socket] = queue.Queue()
@@ -168,7 +167,7 @@ class Server:
                     message = get_message(header, sock)
                     if not message:
                         continue
-                    print(f"[Client:{self.find_player_by_socket(sock).name}({sock.getpeername()})]: {message}")
+                    print(f"[Client:{self.find_client_by_socket(sock).name}({sock.getpeername()})]: {message}")
                     message_split = message.split(' ', 1)
                     if len(message_split) != 2:
                         message_split.append(None)
@@ -182,10 +181,10 @@ class Server:
                         try:
                             next_msg = self.message_queues[sock].get_nowait()
                         except queue.Empty:
-                            print(f"Output queue for {self.find_player_by_socket(sock).name}({sock.getpeername()}) is empty")
+                            print(f"Output queue for {self.find_client_by_socket(sock).name}({sock.getpeername()}) is empty")
                             self.outputs.remove(sock)
                         else:
-                            print(f"Sending {next_msg} to {self.find_player_by_socket(sock).name}({sock.getpeername()})")
+                            print(f"Sending {next_msg} to {self.find_client_by_socket(sock).name}({sock.getpeername()})")
                             self.send_data(sock, next_msg)
                 except KeyError:
                     if sock in self.inputs:
@@ -195,7 +194,7 @@ class Server:
                     continue
 
             for sock in exceptional:
-                print(f"Handling exceptional condition for {self.find_player_by_socket(sock).name}({sock.getpeername()})")
+                print(f"Handling exceptional condition for {self.find_client_by_socket(sock).name}({sock.getpeername()})")
                 self.close_socket(sock)
 
             time.sleep(self.server_tick_rate)
