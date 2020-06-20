@@ -4,22 +4,22 @@
             {
                 "blue":
                 {
-                    "values": ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "skip", "skip", "draw2", "draw2", "reverse", "reverse"],
+                    "values": ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "1", "2", "3", "4", "5", "6", "7", "8", "9", "skip", "skip", "draw2", "draw2", "reverse", "reverse"],
                     "hex": "#7B68EE"
                 },
                 "red":
                 {
-                    "values": ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "skip", "skip", "draw2", "draw2", "reverse", "reverse"],
+                    "values": ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "1", "2", "3", "4", "5", "6", "7", "8", "9", "skip", "skip", "draw2", "draw2", "reverse", "reverse"],
                     "hex": "#800000"
                 },
                 "green":
                 {
-                    "values": ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "skip", "skip", "draw2", "draw2", "reverse", "reverse"],
+                    "values": ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "1", "2", "3", "4", "5", "6", "7", "8", "9", "skip", "skip", "draw2", "draw2", "reverse", "reverse"],
                     "hex": "#006400"
                 },
                 "yellow":
                 {
-                    "values": ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "skip", "skip", "draw2", "draw2", "reverse", "reverse"],
+                    "values": ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "1", "2", "3", "4", "5", "6", "7", "8", "9", "skip", "skip", "draw2", "draw2", "reverse", "reverse"],
                     "hex": "#FFFF00"
                 },
                 "black":
