@@ -24,6 +24,22 @@ class Deck:
             self.add_cards(cards)
             self.shuffle_deck()
 
+    def generate_default_deck(self, card_definitions_file):
+        self._cards = deque()
+        self.infinite_deck = False
+        import json
+        json_path = card_definitions_file
+        with open(json_path, 'r') as card_defs:
+            data = json.load(card_defs)
+            # Retrieve all cards
+            for card_color in data['cards']['colors']:
+                print(f"{card_color} - "
+                      f"\n{data['cards']['colors'][card_color]['values']}")
+                for card_value in data['cards']['colors'][card_color]['values']:
+                    self.add_to_top(Card(card_color=card_color, card_value=card_value,
+                                         card_hex=data['cards']['colors'][card_color]['hex']))
+        self.shuffle_deck()
+
     def add_cards(self, cards: [List[Card]]) -> bool:
         if len(cards) > self.size:
             return False
