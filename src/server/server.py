@@ -114,15 +114,14 @@ class Server:
         return None
 
     def handle_message_data(self, command, *params):
-        for com in self.commands:
-            if command == com:
-                return self.callbacks.callback(self.commands[command], *params)
-        return False
+        if command in self.commands:
+            self.callbacks.callback(self.commands[command], *params)
 
     def broadcast_message(self, message):
         for sock in self.message_queues:
             self.message_queues[sock].put(prepare_message(f'{message}'))
-            self.outputs.append(sock)
+            if sock not in self.outputs:
+                self.outputs.append(sock)
 
     def send_message(self, sock, message):
         self.message_queues[sock].put(prepare_message(f'{message}'))
@@ -144,6 +143,7 @@ class Server:
                 # Check if the updated connection is a new socket.
                 if sock is bind_socket:
                     #if self.callbacks.callback('on_new_connection', sock) is False:
+                    #    print("rejected new socket")
                     #    self.close_socket(sock)
                     #    continue
                     insecure_socket, client_address = bind_socket.accept()
@@ -173,9 +173,8 @@ class Server:
                     message_split = message.split(' ', 1)
                     if len(message_split) != 2:
                         message_split.append(None)
-                    if not self.handle_message_data(message_split[0], sock, message_split[1]):
-                        continue
-                    self.outputs.append(sock)
+                    self.handle_message_data(message_split[0], sock, message_split[1])
+                    # self.outputs.append(sock)
 
             for sock in writable:
                 try:

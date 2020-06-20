@@ -14,12 +14,12 @@ def on_connect(*params):
     message = params[1]
     if game_started:
         server.close_socket(sock=socket)
-        return False
+        return
     if message is None:
-        return False
+        return
     new_player = server.find_client_by_socket(socket)
     if new_player.name_set_flag:
-        return False
+        return
     new_name = message
     if message.lower() in [player.name.lower() for player in server.clients]:
         print("[Server] A client tried to join with the same name as an existing client. "
@@ -28,7 +28,6 @@ def on_connect(*params):
     new_player.name = new_name
     new_player.name_set_flag = True
     server.send_message(socket, f'[Server] Hello {new_player.name}!')
-    return True
 
 
 def on_message(*params):
@@ -36,25 +35,23 @@ def on_message(*params):
     message = params[1]
     server.broadcast_message(f'[{server.find_client_by_socket(socket).name}]: {message}')
     print(f'[{server.find_client_by_socket(socket).name}]: {message}')
-    return True
 
 
 def on_disconnect(*params):
+    global game_started
     socket = params[0]
     server.broadcast_message(f"[Server] Client has disconnected: {server.find_client_by_socket(socket).name}({socket.getpeername()})")
     if game_started:
-        print("An open game must close")
         game.end_flag = True
-        server.broadcast_message(f'[Server] The game was closed as {server.find_client_by_socket(socket)} disconnected.')
+        server.broadcast_message(f'[Server] The game was closed as {server.find_client_by_socket(socket).name} disconnected.')
     server.close_socket(socket)
-    return False
+    game_started = False
 
 
 def on_get_clients(*params):
     socket = params[0]
     all_clients = [client.name for client in server.clients]
     server.send_message(socket, f"[Server] All Clients: {', '.join(all_clients)}")
-    return True
 
 
 def on_draw_card(*params):
@@ -71,15 +68,13 @@ def on_view_cards(*params):
     if player:
         if player.hand_size() == 0:
             server.send_message(socket, f'[Server] {player.name} has no cards on hand.')
-            return True
+            server.outputs.append(socket)
+            return
         for card in player.hand.deck:
             server.send_message(socket, f'[Server] {str(card)}')
-        return True
-    return False
 
 
 def on_game_start(*params):
-    socket = params[0]
     global game_started
     if not game_started:
         game_started = True
