@@ -63,6 +63,11 @@ class Deck:
             return self.draw()
         return self.deck.popleft()
 
+    def remove_card(self, card: Card) -> bool:
+        if self.infinite_deck:
+            return False
+        return self.deck.remove(card)
+
     def shuffle_deck(self):
         if self.infinite_deck:
             return
