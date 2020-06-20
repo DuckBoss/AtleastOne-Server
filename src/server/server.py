@@ -119,11 +119,10 @@ class Server:
                 return self.callbacks.callback(self.commands[command], *params)
         return False
 
-    def broadcast_message(self, origin_sock, message):
+    def broadcast_message(self, message):
         for sock in self.message_queues:
             self.message_queues[sock].put(prepare_message(f'{message}'))
-            if self.message_queues[sock] != origin_sock:
-                self.outputs.append(sock)
+            self.outputs.append(sock)
 
     def send_message(self, sock, message):
         self.message_queues[sock].put(prepare_message(f'{message}'))
@@ -144,6 +143,9 @@ class Server:
             for sock in readable:
                 # Check if the updated connection is a new socket.
                 if sock is bind_socket:
+                    #if self.callbacks.callback('on_new_connection', sock) is False:
+                    #    self.close_socket(sock)
+                    #    continue
                     insecure_socket, client_address = bind_socket.accept()
                     # Wrap the incoming socket into an SSL socket.
                     client_socket = self.context.wrap_socket(insecure_socket, server_side=True)
