@@ -9,12 +9,11 @@ import random
 from server_cfg import ServerCFGUtility
 import server_callbacks
 import server_commands
+from server_client import Client
 from server_strings import SERVER_SETTINGS, SERVER_IP, SERVER_PORT, SERVER_TICK_RATE, SERVER_SIZE, SERVER_FILES, SERVER_CERT_PATH, SERVER_PKEY_PATH
 from threading import Thread
 import time
 from server_utilities import prepare_message, get_message, get_msg_header
-
-from src.game.player import Player
 
 
 class Server:
@@ -25,7 +24,7 @@ class Server:
 
         self.inputs = []
         self.outputs = []
-        self.clients = []
+        self.clients = {}
         self.message_queues = {}
 
         self.commands = server_commands.ServerCommands()
@@ -63,8 +62,6 @@ class Server:
             return None
         # Listen for connections with up to 'X' amount of connections
         bind_socket.listen(server_size)
-        # Initialize a client list
-        self.client_list = []
         print(f"[Server] Secure Server Established: {server_ip}:{server_port}")
         self.callbacks.callback('on_server_start')
         return bind_socket
@@ -92,26 +89,28 @@ class Server:
         return bind_socket
 
     def close_socket(self, sock, sock_err=None):
-        player = self.find_client_by_socket(sock)
+        client = self.find_client_by_socket(sock)
         if sock_err:
-            print(f"Client has unexpectedly disconnected: {player.name}({sock.getpeername()})")
+            print(f"Client has unexpectedly disconnected: {client.name}({sock.getpeername()})")
         else:
-            print(f"Client has disconnected: {player.name}({sock.getpeername()})")
+            print(f"Client has disconnected: {client.name}({sock.getpeername()})")
 
         if sock in self.outputs:
             self.outputs.remove(sock)
         if sock in self.inputs:
             self.inputs.remove(sock)
-        if player in self.clients:
-            self.clients.remove(player)
+        self.clients.pop(client.socket)
         del self.message_queues[sock]
         sock.close()
 
     def find_client_by_socket(self, sock):
-        for player in self.clients:
-            if player.socket == sock:
-                return player
+        for client in self.clients:
+            if self.clients[client].socket == sock:
+                return self.clients[client]
         return None
+
+    def set_client(self, client):
+        self.clients[client.socket] = client
 
     def handle_message_data(self, command, *params):
         if command in self.commands:
@@ -152,9 +151,9 @@ class Server:
                     client_socket.setblocking(0)
 
                     new_client_id = random.SystemRandom().getrandbits(16)
-                    new_client = Player(socket=client_socket, name=f"#{new_client_id}")
-                    print(f"[Server] New client connected, generated player {new_client.name}")
-                    self.clients.append(new_client)
+                    new_client = Client(socket=client_socket, name=f"Client#{new_client_id}")
+                    print(f"[Server] New client connected, generated client {new_client.name}")
+                    self.clients[new_client.socket] = new_client
 
                     self.inputs.append(client_socket)
                     self.message_queues[client_socket] = queue.Queue()

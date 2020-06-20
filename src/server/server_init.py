@@ -2,6 +2,7 @@ import random
 import datetime
 from server import Server
 from src.game.logic import game
+from src.game.player import Player
 from src.server.server_utilities import prepare_message
 
 
@@ -17,17 +18,19 @@ def on_connect(*params):
         return
     if message is None:
         return
-    new_player = server.find_client_by_socket(socket)
-    if new_player.name_set_flag:
+    temp_client = server.find_client_by_socket(socket)
+    new_client = Player(temp_client.socket, temp_client.name)
+    if new_client.name_set_flag:
         return
     new_name = message
-    if message.lower() in [player.name.lower() for player in server.clients]:
+    if message.lower() in [server.clients[client].name.lower() for client in server.clients]:
         print("[Server] A client tried to join with the same name as an existing client. "
               "A randomly generated name has been given instead.")
-        new_name = f'User#{random.SystemRandom().getrandbits(16)}'
-    new_player.name = new_name
-    new_player.name_set_flag = True
-    server.send_message(socket, f'[Server] Hello {new_player.name}!')
+    else:
+        new_client.name = new_name
+    new_client.name_set_flag = True
+    server.set_client(new_client)
+    server.send_message(socket, f'[Server] Hello {new_client.name}!')
 
 
 def on_message(*params):
@@ -50,7 +53,7 @@ def on_disconnect(*params):
 
 def on_get_clients(*params):
     socket = params[0]
-    all_clients = [client.name for client in server.clients]
+    all_clients = [server.clients[client].name for client in server.clients]
     server.send_message(socket, f"[Server] All Clients: {', '.join(all_clients)}")
 
 
@@ -64,13 +67,13 @@ def on_draw_card(*params):
 
 def on_view_cards(*params):
     socket = params[0]
-    player = server.find_client_by_socket(sock=socket)
-    if player:
-        if player.hand_size() == 0:
-            server.send_message(socket, f'[Server] {player.name} has no cards on hand.')
+    client = server.find_client_by_socket(sock=socket)
+    if client:
+        if client.hand_size() == 0:
+            server.send_message(socket, f'[Server] {client.name} has no cards on hand.')
             server.outputs.append(socket)
             return
-        for card in player.hand.deck:
+        for card in client.hand.deck:
             server.send_message(socket, f'[Server] {str(card)}')
 
 

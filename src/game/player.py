@@ -1,14 +1,13 @@
 from typing import List, Optional
 from src.game.card import Card
 from src.game.deck import Deck
+from src.server.server_client import Client
 
 
-class Player:
+class Player(Client):
     def __init__(self, socket, name, hand: Optional[List[Card]] = None):
-        self._socket = socket
-        self._name = name
+        super().__init__(socket, name)
         self._hand = hand if hand is not None else Deck()
-        self.name_set_flag = False
 
     @property
     def hand(self):
@@ -32,7 +31,7 @@ class Player:
         return self._name
 
     @name.setter
-    def name(self, value):
+    def name(self, value: str):
         self._name = value
 
     @property
