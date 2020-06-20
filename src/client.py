@@ -19,7 +19,18 @@ ssl_socket.connect((SERVER_IP, SERVER_PORT))
 
 print(f"Server Certificate:\n{ssl.DER_cert_to_PEM_cert(ssl_socket.getpeercert(True))}")
 print(f"Connnection Established: [{SERVER_IP}:{SERVER_PORT}]")
-
+print("------------------------------------------------------------------")
+print("This client currently implements a command-system for testing purposes")
+print("This will be overridden when the C# client is made.")
+print("------------------------------------------------------------------")
+print("You can type commands into the console to send them to the server.")
+print("\nAvailable commands: ")
+print("!say <message>: Broadcasts a chat message to all clients on the server.")
+print("!draw: Draws a random card from an infinite deck.")
+print("!cards: Lists the cards currently on hand.")
+print("!clients: Lists all the clients on the server.")
+print("!start: Starts a game session, currently it only creates a deck and distributes 7 cards to each client.")
+print("------------------------------------------------------------------")
 
 def disconnect_from_server():
     global kill_threads
