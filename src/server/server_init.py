@@ -1,6 +1,7 @@
 import random
 import datetime
 from server import Server
+from src.game.logic import game
 from src.server.server_utilities import prepare_message
 
 
@@ -11,6 +12,9 @@ def on_start():
 def on_connect(*params):
     socket = params[0]
     message = params[1]
+    if game_started:
+        server.close_socket(sock=socket)
+        return False
     if message is None:
         return False
     new_player = server.find_client_by_socket(socket)
@@ -30,14 +34,18 @@ def on_connect(*params):
 def on_message(*params):
     socket = params[0]
     message = params[1]
-    server.broadcast_message(socket, f'[{server.find_client_by_socket(socket).name}]: {message}')
+    server.broadcast_message(f'[{server.find_client_by_socket(socket).name}]: {message}')
     print(f'[{server.find_client_by_socket(socket).name}]: {message}')
     return True
 
 
 def on_disconnect(*params):
     socket = params[0]
-    server.broadcast_message(socket, f"[Server] Client has disconnected: {server.find_client_by_socket(socket).name}({socket.getpeername()})")
+    server.broadcast_message(f"[Server] Client has disconnected: {server.find_client_by_socket(socket).name}({socket.getpeername()})")
+    if game_started:
+        print("An open game must close")
+        game.end_flag = True
+        server.broadcast_message(f'[Server] The game was closed as {server.find_client_by_socket(socket)} disconnected.')
     server.close_socket(socket)
     return False
 
@@ -57,6 +65,28 @@ def on_draw_card(*params):
     server.send_message(socket, f'[Server] {str(card)}')
 
 
+def on_view_cards(*params):
+    socket = params[0]
+    player = server.find_client_by_socket(sock=socket)
+    if player:
+        if player.hand_size() == 0:
+            server.send_message(socket, f'[Server] {player.name} has no cards on hand.')
+            return True
+        for card in player.hand.deck:
+            server.send_message(socket, f'[Server] {str(card)}')
+        return True
+    return False
+
+
+def on_game_start(*params):
+    socket = params[0]
+    global game_started
+    if not game_started:
+        game_started = True
+        game.game_loop(server=server)
+
+
+game_started = False
 server = Server()
 server.callbacks.register_callback('on_client_connect', on_connect)
 server.callbacks.register_callback('on_client_disconnect', on_disconnect)
@@ -64,7 +94,11 @@ server.callbacks.register_callback('on_server_start', on_start)
 server.callbacks.register_callback('on_client_message', on_message)
 server.callbacks.register_callback('on_draw_card', on_draw_card)
 server.callbacks.register_callback('on_get_clients', on_get_clients)
+server.callbacks.register_callback('on_game_start', on_game_start)
+server.callbacks.register_callback('on_view_cards', on_view_cards)
 server.commands.register_command('!say', 'on_client_message')
 server.commands.register_command('!draw', 'on_draw_card')
+server.commands.register_command('!cards', 'on_view_cards')
 server.commands.register_command('!clients', 'on_get_clients')
+server.commands.register_command('!start', 'on_game_start')
 server.start_server()
