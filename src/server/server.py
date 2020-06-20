@@ -10,6 +10,7 @@ from server_cfg import ServerCFGUtility
 import server_callbacks
 import server_commands
 from server_client import Client
+import server_data
 from server_strings import SERVER_SETTINGS, SERVER_IP, SERVER_PORT, SERVER_TICK_RATE, SERVER_SIZE, SERVER_FILES, SERVER_CERT_PATH, SERVER_PKEY_PATH
 from threading import Thread
 import time
@@ -17,7 +18,9 @@ from server_utilities import prepare_message, get_message, get_msg_header
 
 
 class Server:
-    def __init__(self):
+    def __init__(self, name='Server'):
+        self._name = name
+
         self.header_size = 8
         self.context = None
         self.client_list = None
@@ -32,6 +35,14 @@ class Server:
         self.serv_thread = None
         self.exit_flag = False
         self.bind_socket = self.setup_server()
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @name.setter
+    def name(self, value: str):
+        self._name = value
 
     def start_server(self):
         if self.bind_socket:
@@ -116,19 +127,23 @@ class Server:
         if command in self.commands:
             self.callbacks.callback(self.commands[command], *params)
 
-    def broadcast_message(self, message):
+    def broadcast_message(self, data):
         for sock in self.message_queues:
-            self.message_queues[sock].put(prepare_message(f'{message}'))
+            if data['client'] is None:
+                data['client'] = self.name
+            self.message_queues[sock].put(prepare_message(data))
             if sock not in self.outputs:
                 self.outputs.append(sock)
 
-    def send_message(self, sock, message):
-        self.message_queues[sock].put(prepare_message(f'{message}'))
+    def send_message(self, sock, data):
+        if data['client'] is None:
+            data['client'] = self.name
+        self.message_queues[sock].put(prepare_message(data))
         if sock not in self.outputs:
             self.outputs.append(sock)
 
-    def send_data(self, sock, message):
-        sock.send(bytes(message, 'utf-8'))
+    def send_data(self, sock, data):
+        sock.send(bytes(data, 'utf-8'))
         if sock in self.outputs:
             self.outputs.remove(sock)
         if sock not in self.inputs:
@@ -165,10 +180,11 @@ class Server:
                     except socket.error:
                         self.close_socket(sock, socket.error)
                         continue
-                    message = get_message(header, sock)
-                    if not message:
+                    message_json = get_message(header, sock)
+                    if not message_json:
                         continue
-                    print(f"[Client:{self.find_client_by_socket(sock).name}({sock.getpeername()})]: {message}")
+                    message = message_json['data_content']
+                    print(f"[SentFromClient-{self.find_client_by_socket(sock).name}({sock.getpeername()})]: {message}")
                     message_split = message.split(' ', 1)
                     if len(message_split) != 2:
                         message_split.append(None)

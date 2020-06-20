@@ -1,14 +1,18 @@
+import json
+
+
 HEADER_SIZE = 8
 
 
 def prepend_msg_length_header(message):
+    message = json.dumps(message)
     message = "[" + f"{len(message):<{HEADER_SIZE}}" + "]" + message
     return message
 
 
-def prepare_message(message):
-    message = prepend_msg_length_header(message)
-    return message
+def prepare_message(data):
+    data = prepend_msg_length_header(data)
+    return data
 
 
 def get_msg_header(socket):
@@ -22,5 +26,5 @@ def get_message(header_msg, socket):
     header_len = int(header_msg[1:HEADER_SIZE + 1].decode("utf-8"))
     # Get the message based on the number of bytes stated in the header
     raw_data = socket.recv(header_len)
-    msg_data = bytes.decode(raw_data, 'utf-8')
+    msg_data = json.loads(bytes.decode(raw_data, 'utf-8'))
     return msg_data
