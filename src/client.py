@@ -2,11 +2,16 @@ import socket
 import ssl
 import time
 import threading
+import json
 from server.server_utilities import prepare_message
+from server import server_data
 
 SERVER_IP = "127.0.0.1"
 SERVER_PORT = 9999
 PLAYER_NAME = input("Enter a display name: ")
+while len(PLAYER_NAME) == 0:
+    PLAYER_NAME = input("Enter a display name: ")
+SERVER_NAME = 'N/A'
 HEADER_SIZE = 8
 CLIENT_TICK_RATE = 0.1
 
@@ -30,14 +35,18 @@ print("!draw: Draws a random card from an infinite deck.")
 print("!cards: Lists the cards currently on hand.")
 print("!clients: Lists all the clients on the server.")
 print("!start: Starts a game session, currently it only creates a deck and distributes 7 cards to each client.")
+print("!stop: Stops an active game session and clears the hands of all clients.")
 print("------------------------------------------------------------------")
 
-def disconnect_from_server():
+
+def disconnect_from_server(reason=None):
     global kill_threads
     kill_threads = True
     if ssl_socket:
         ssl_socket.close()
     print(f"Client disconnected from server: [{SERVER_IP}:{SERVER_PORT}]")
+    if reason:
+        print(f'Client disconnected due to the following: {reason}')
 
 
 def inbound_server_data():
@@ -45,29 +54,44 @@ def inbound_server_data():
     while not kill_threads:
         try:
             # Get header from 10 bytes (2 are formatting)
-            header = ssl_socket.recv(HEADER_SIZE + 2)
+            raw_header = ssl_socket.recv(HEADER_SIZE + 2)
         except socket.error as e:
             # print(e)
             disconnect_from_server()
             continue
-        if len(header) <= 0:
+        if len(raw_header) <= 0:
             continue
         # Get message length from given header info
-        header_len = int(header[1:HEADER_SIZE + 1].decode("utf-8"))
+        msg_len = int(raw_header[1:HEADER_SIZE + 1].decode("utf-8"))
         # Get the message based on the number of bytes stated in the header
-        full_msg = ssl_socket.recv(header_len)
-        print(f"{header.decode('utf-8')}{full_msg.decode('utf-8')}")
-        if full_msg.decode("utf-8") == "!quit":
+        raw_msg = ssl_socket.recv(msg_len)
+        header = raw_header.decode('utf-8')
+        message = json.loads(raw_msg.decode('utf-8'))
+        if message['data_content'] == "!quit":
             disconnect_from_server()
+        elif message['data_content'].split(' ', 1)[0] == "!setname":
+            global PLAYER_NAME
+            PLAYER_NAME = message['data_content'].split(' ', 1)[1]
+            print(f'[DEBUG] Player name set: {PLAYER_NAME}')
+        elif message['data_content'].split(' ', 1)[0] == "!setserver":
+            global SERVER_NAME
+            SERVER_NAME = message['client']
+            print(f'[DEBUG] Server name set: {SERVER_NAME}')
+        else:
+            print(f"{header}[{message['client'] if message['client'] is not None else SERVER_NAME}{' -> Me' if message['data_type'] != 'broadcast' else ''}]:{message['data_content']}")
 
 
 def outbound_data_to_server():
-    # Send hello message
-    ssl_socket.send(bytes(prepare_message(f"!connect {PLAYER_NAME}"), 'utf-8'))
+    # Send connect message
+    connect_data = server_data.Data(content_type='message', content_data=f"!connect {PLAYER_NAME}", client=PLAYER_NAME)
+    ssl_socket.send(bytes(prepare_message(connect_data), 'utf-8'))
     while not kill_threads:
         try:
-            to_send = input()
-            ssl_socket.send(bytes(prepare_message(to_send), 'utf-8'))
+            # Send data to the server.
+            data_to_send = input()
+            if len(data_to_send) != 0:
+                data_to_send = server_data.Data(content_type='message', content_data=data_to_send, client=PLAYER_NAME)
+                ssl_socket.send(bytes(prepare_message(data_to_send), 'utf-8'))
         except socket.error as e:
             # print(e)
             disconnect_from_server()
