@@ -1,11 +1,8 @@
-import random
-import datetime
-from server import Server
+from src.server.server import Server
 from src.game.logic import game
 from src.game.player import Player
 from src.server import server_data
 from src.server.server_strings import *
-from src.server.server_utilities import prepare_message
 
 
 def on_start():
@@ -52,8 +49,12 @@ def on_disconnect(*params):
     server.send_message(server_data.Data(content_type=SERV_BROADCAST, content_data=f"Client has disconnected: {server.find_client_by_socket(socket).name}({socket.getpeername()})"))
     server.send_message(server_data.Data(content_type=SERV_MESSAGE, content_data='!quit'), sock=socket)
     if game_started:
-        game.end_flag = True
-        server.send_message(server_data.Data(content_type=SERV_BROADCAST, content_data=f'The game was closed as {server.find_client_by_socket(socket).name} disconnected.'))
+        if len(server.clients) <= 2:
+            game.end_flag = True
+            server.send_message(server_data.Data(content_type=SERV_BROADCAST,
+                                                 content_data="The game has been shutdown as there are too few players to continue playing."))
+        elif game.current_player.socket == socket:
+            game.end_turn(server)
     game_started = False
     server.close_socket(socket)
 
