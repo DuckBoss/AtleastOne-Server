@@ -3,9 +3,9 @@ import ssl
 import time
 import threading
 import json
-from server.server_utilities import prepare_message
-from server.server_strings import *
-from server import server_data
+from src.server.server_utilities import prepare_message
+from src.server.server_strings import *
+from src.server import server_data
 
 SERVER_IP = "127.0.0.1"
 SERVER_PORT = 9999
@@ -32,7 +32,8 @@ print("------------------------------------------------------------------")
 print("You can type commands into the console to send them to the server.")
 print("\nAvailable commands: ")
 print("!say <message>: Broadcasts a chat message to all clients on the server.")
-print("!draw: Draws a random card from an infinite deck.")
+print("!draw: Draws a card from the deck to the player hand.")
+print("!play <card_index>: Plays a card from the player hand by the given index.")
 print("!cards: Lists the cards currently on hand.")
 print("!clients: Lists all the clients on the server.")
 print("!start: Starts a game session, currently it only creates a deck and distributes 7 cards to each client.")
