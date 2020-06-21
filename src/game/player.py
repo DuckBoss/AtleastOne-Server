@@ -21,7 +21,7 @@ class Player(Client):
         self._hand.add_to_top(card)
 
     def remove_from_hand(self, card: Card):
-        self._hand.remove_card(card)
+        return self._hand.remove_card(card)
 
     def hand_size(self):
         return self._hand.size
