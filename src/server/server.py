@@ -119,6 +119,11 @@ class Server:
                 return self.clients[client]
         return None
 
+    def find_socket_by_client(self, client):
+        for client in self.clients:
+            if self.clients[client] == client:
+                return self.clients[client].socket
+
     def set_client(self, client):
         self.clients[client.socket] = client
 
