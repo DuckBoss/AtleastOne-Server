@@ -72,8 +72,9 @@ class Deck:
 
     def remove_card(self, card: Card) -> bool:
         if self.infinite_deck:
-            return False
-        return self.deck.remove(card)
+            return None
+        self.deck.remove(card)
+        return card
 
     def shuffle_deck(self):
         if self.infinite_deck:
@@ -97,3 +98,7 @@ class Deck:
         if self.infinite_deck:
             return f"Deck (Infinite Size)"
         return f"Deck ({','.join(self.deck)}"
+
+    def __iter__(self):
+        for item in list(self._cards):
+            yield item
