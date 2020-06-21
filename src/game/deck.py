@@ -37,6 +37,9 @@ class Deck:
         self.deck = ceil(num_of_players / float(self.players_per_deck)) * self.deck
         self.shuffle_deck()
 
+    def get_top_card(self):
+        return self._cards[-1]
+
     def add_cards(self, cards: [List[Card]]) -> bool:
         for card in cards:
             self.add_to_top(card)
