@@ -10,8 +10,8 @@ from server_cfg import ServerCFGUtility
 import server_callbacks
 import server_commands
 from server_client import Client
-import server_data
-from server_strings import SERVER_SETTINGS, SERVER_IP, SERVER_PORT, SERVER_TICK_RATE, SERVER_SIZE, SERVER_FILES, SERVER_CERT_PATH, SERVER_PKEY_PATH
+from server_cfg_strings import SERVER_SETTINGS, SERVER_IP, SERVER_PORT, SERVER_TICK_RATE, SERVER_SIZE, SERVER_FILES, SERVER_CERT_PATH, SERVER_PKEY_PATH
+from server_strings import *
 from threading import Thread
 import time
 from server_utilities import prepare_message, get_message, get_msg_header
@@ -23,7 +23,6 @@ class Server:
 
         self.header_size = 8
         self.context = None
-        self.client_list = None
 
         self.inputs = []
         self.outputs = []
@@ -55,13 +54,13 @@ class Server:
         self.serv_thread.join()
 
     def setup_server(self):
-        print(f"[Server] Setting Up Server...")
+        print(f"[{self.name}] Setting Up Server...")
         cfg_utility = ServerCFGUtility(os.path.dirname(os.path.abspath(__file__))+"/../configs/server_config.ini")
         server_cert = str(cfg_utility.get_value(key=SERVER_CERT_PATH, section=SERVER_FILES))
         server_pkey = str(cfg_utility.get_value(key=SERVER_PKEY_PATH, section=SERVER_FILES))
         ssl_ready = self.initialize_ssl_context(server_cert_path=server_cert, server_key_path=server_pkey)
         if not ssl_ready:
-            print("[Server] There was an error establishing the SSL certification/key")
+            print("[{self.name}] There was an error establishing the SSL certification/key")
             return None
         server_ip = str(cfg_utility.get_value(key=SERVER_IP, section=SERVER_SETTINGS))
         server_port = int(cfg_utility.get_value(key=SERVER_PORT, section=SERVER_SETTINGS))
@@ -69,18 +68,18 @@ class Server:
         self.server_tick_rate = float(cfg_utility.get_value(key=SERVER_TICK_RATE, section=SERVER_SETTINGS))
         bind_socket = self.initialize_bind_socket(server_ip, server_port)
         if not bind_socket:
-            print(f"[Server] There was an error binding the socket to {server_ip}:{server_port}")
+            print(f"[{self.name}] There was an error binding the socket to {server_ip}:{server_port}")
             return None
         # Listen for connections with up to 'X' amount of connections
         bind_socket.listen(server_size)
-        print(f"[Server] Secure Server Established: {server_ip}:{server_port}")
+        print(f"[{self.name}] Secure Server Established: {server_ip}:{server_port}")
         self.callbacks.callback('on_server_start')
         return bind_socket
 
     def initialize_ssl_context(self, server_cert_path: str, server_key_path: str):
         # Setup context for client authentication
         self.context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-        print(f"[Server] Setting up server certificates...")
+        print(f"[{self.name}] Setting up server certificates...")
         # Load server cert + server private key generated from openssl
         self.context.load_cert_chain(certfile=server_cert_path, keyfile=server_key_path)
         if self.context:
@@ -96,7 +95,7 @@ class Server:
         self.inputs = [bind_socket]
         self.outputs = []
         self.message_queues = {}
-        print(f"[Server] Setting up server on: {server_ip}:{server_port}")
+        print(f"[{self.name}] Setting up server on: {server_ip}:{server_port}")
         return bind_socket
 
     def close_socket(self, sock, sock_err=None):
@@ -127,20 +126,22 @@ class Server:
         if command in self.commands:
             self.callbacks.callback(self.commands[command], *params)
 
-    def broadcast_message(self, data):
-        for sock in self.message_queues:
-            if data['client'] is None:
-                data['client'] = self.name
+    def send_message(self, data, sock=None):
+        if data[SERV_DATA_TYPE] == SERV_BROADCAST:
+            for sock in self.message_queues:
+                if data[SERV_DATA_CLIENT] is None:
+                    data[SERV_DATA_CLIENT] = self.name
+                self.message_queues[sock].put(prepare_message(data))
+                if sock not in self.outputs:
+                    self.outputs.append(sock)
+        elif data[SERV_DATA_TYPE] == SERV_MESSAGE:
+            if not sock:
+                return
+            if data[SERV_DATA_CLIENT] is None:
+                data[SERV_DATA_CLIENT] = self.name
             self.message_queues[sock].put(prepare_message(data))
             if sock not in self.outputs:
                 self.outputs.append(sock)
-
-    def send_message(self, sock, data):
-        if data['client'] is None:
-            data['client'] = self.name
-        self.message_queues[sock].put(prepare_message(data))
-        if sock not in self.outputs:
-            self.outputs.append(sock)
 
     def send_data(self, sock, data):
         sock.send(bytes(data, 'utf-8'))
@@ -167,7 +168,7 @@ class Server:
 
                     new_client_id = random.SystemRandom().getrandbits(16)
                     new_client = Client(socket=client_socket, name=f"Client#{new_client_id}")
-                    print(f"[Server] New client connected, generated client {new_client.name}")
+                    print(f"[{self.name}] New client connected, generated client {new_client.name}")
                     self.clients[new_client.socket] = new_client
 
                     self.inputs.append(client_socket)
@@ -183,7 +184,7 @@ class Server:
                     message_json = get_message(header, sock)
                     if not message_json:
                         continue
-                    message = message_json['data_content']
+                    message = message_json[SERV_DATA_CONTENT]
                     print(f"[SentFromClient-{self.find_client_by_socket(sock).name}({sock.getpeername()})]: {message}")
                     message_split = message.split(' ', 1)
                     if len(message_split) != 2:

@@ -7,27 +7,23 @@ from copy import deepcopy
 
 
 class Deck:
-    def __init__(self, infinite_deck: bool = False, max_deck_size=-1, cards: Optional[List[Card]] = None):
+    def __init__(self, infinite_deck: bool = False, players_per_deck=10, cards: Optional[List[Card]] = None):
         self._cards = deque()
         self.infinite_deck = infinite_deck
+        self.players_per_deck = players_per_deck
         if infinite_deck:
             from src.game.utils.deck_utils import generate_card_dictionary
             self.card_dictionary = generate_card_dictionary()
-            self._max_deck_size = 99999
             return
-        if max_deck_size == -1:
-            self._max_deck_size = 99999
-        else:
-            self._max_deck_size = max_deck_size
         if cards:
-            self._max_deck_size = len(cards)
             self.add_cards(cards)
             self.shuffle_deck()
 
-    def generate_default_deck(self, card_definitions_file):
+    def generate_default_deck(self, card_definitions_file, num_of_players):
         self._cards = deque()
         self.infinite_deck = False
         import json
+        from math import ceil
         json_path = card_definitions_file
         with open(json_path, 'r') as card_defs:
             data = json.load(card_defs)
@@ -38,26 +34,18 @@ class Deck:
                 for card_value in data['cards']['colors'][card_color]['values']:
                     self.add_to_top(Card(card_color=card_color, card_value=card_value,
                                          card_hex=data['cards']['colors'][card_color]['hex']))
+        self.deck = ceil(num_of_players / float(self.players_per_deck)) * self.deck
         self.shuffle_deck()
 
     def add_cards(self, cards: [List[Card]]) -> bool:
-        if len(cards) > self.size:
-            return False
         for card in cards:
             self.add_to_top(card)
-        return True
 
     def add_to_top(self, card: Card) -> bool:
-        if self.size < self.max_size:
-            self.deck.append(card)
-            return True
-        return False
+        self.deck.append(card)
 
     def add_to_bottom(self, card: Card) -> bool:
-        if self.size < self.max_size:
-            self.deck.appendleft(card)
-            return True
-        return False
+        self.deck.appendleft(card)
 
     def draw_random(self) -> Card:
         seed(time())
@@ -101,10 +89,6 @@ class Deck:
     @property
     def size(self) -> int:
         return len(self.deck)
-
-    @property
-    def max_size(self):
-        return self._max_deck_size
 
     def __str__(self):
         if self.infinite_deck:

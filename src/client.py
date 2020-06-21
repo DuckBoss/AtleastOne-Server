@@ -4,6 +4,7 @@ import time
 import threading
 import json
 from server.server_utilities import prepare_message
+from server.server_strings import *
 from server import server_data
 
 SERVER_IP = "127.0.0.1"
@@ -67,30 +68,30 @@ def inbound_server_data():
         raw_msg = ssl_socket.recv(msg_len)
         header = raw_header.decode('utf-8')
         message = json.loads(raw_msg.decode('utf-8'))
-        if message['data_content'] == "!quit":
+        if message[SERV_DATA_CONTENT] == "!quit":
             disconnect_from_server()
-        elif message['data_content'].split(' ', 1)[0] == "!setname":
+        elif message[SERV_DATA_CONTENT].split(' ', 1)[0] == "!setname":
             global PLAYER_NAME
-            PLAYER_NAME = message['data_content'].split(' ', 1)[1]
+            PLAYER_NAME = message[SERV_DATA_CONTENT].split(' ', 1)[1]
             print(f'[DEBUG] Player name set: {PLAYER_NAME}')
-        elif message['data_content'].split(' ', 1)[0] == "!setserver":
+        elif message[SERV_DATA_CONTENT].split(' ', 1)[0] == "!setserver":
             global SERVER_NAME
-            SERVER_NAME = message['client']
+            SERVER_NAME = message[SERV_DATA_CLIENT]
             print(f'[DEBUG] Server name set: {SERVER_NAME}')
         else:
-            print(f"{header}[{message['client'] if message['client'] is not None else SERVER_NAME}{' -> Me' if message['data_type'] != 'broadcast' else ''}]:{message['data_content']}")
+            print(f"{header}[{message[SERV_DATA_CLIENT] if message[SERV_DATA_CLIENT] is not None else SERVER_NAME}{' -> Me' if message[SERV_DATA_TYPE] != SERV_BROADCAST else ''}]:{message[SERV_DATA_CONTENT]}")
 
 
 def outbound_data_to_server():
     # Send connect message
-    connect_data = server_data.Data(content_type='message', content_data=f"!connect {PLAYER_NAME}", client=PLAYER_NAME)
+    connect_data = server_data.Data(content_type=SERV_MESSAGE, content_data=f"!connect {PLAYER_NAME}", client=PLAYER_NAME)
     ssl_socket.send(bytes(prepare_message(connect_data), 'utf-8'))
     while not kill_threads:
         try:
             # Send data to the server.
             data_to_send = input()
             if len(data_to_send) != 0:
-                data_to_send = server_data.Data(content_type='message', content_data=data_to_send, client=PLAYER_NAME)
+                data_to_send = server_data.Data(content_type=SERV_MESSAGE, content_data=data_to_send, client=PLAYER_NAME)
                 ssl_socket.send(bytes(prepare_message(data_to_send), 'utf-8'))
         except socket.error as e:
             # print(e)
