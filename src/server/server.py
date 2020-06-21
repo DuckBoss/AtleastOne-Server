@@ -1,20 +1,18 @@
 import socket
 import ssl
-import datetime
 import os.path
 import queue
 import select
 import random
-
-from server_cfg import ServerCFGUtility
-import server_callbacks
-import server_commands
-from server_client import Client
-from server_cfg_strings import SERVER_SETTINGS, SERVER_IP, SERVER_PORT, SERVER_TICK_RATE, SERVER_SIZE, SERVER_FILES, SERVER_CERT_PATH, SERVER_PKEY_PATH
-from server_strings import *
-from threading import Thread
 import time
-from server_utilities import prepare_message, get_message, get_msg_header
+from threading import Thread
+
+from src.server.server_cfg import ServerCFGUtility
+from src.server import server_commands, server_callbacks
+from src.server.server_client import Client
+from src.server.server_cfg_strings import *
+from src.server.server_strings import *
+from src.server.server_utilities import prepare_message, get_message, get_msg_header
 
 
 class Server:
@@ -168,7 +166,11 @@ class Server:
                     #    continue
                     insecure_socket, client_address = bind_socket.accept()
                     # Wrap the incoming socket into an SSL socket.
-                    client_socket = self.context.wrap_socket(insecure_socket, server_side=True)
+                    try:
+                        client_socket = self.context.wrap_socket(insecure_socket, server_side=True)
+                    except ssl.SSLError as e:
+                        print(e)
+                        continue
                     client_socket.setblocking(0)
 
                     new_client_id = random.SystemRandom().getrandbits(16)
